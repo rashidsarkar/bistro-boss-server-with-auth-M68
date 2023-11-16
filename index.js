@@ -47,7 +47,7 @@ async function run() {
       //NOTE -  you can do this many ways (1. email unique, 2. upsert , 3. simple checking)
       const query = { email: user.email };
       const existingUser = await userCollection.findOne(query);
-      console.log(existingUser);
+      // console.log(existingUser);
       if (existingUser) {
         return res.send({ message: "user already exists", insertedId: null });
       }
@@ -57,11 +57,18 @@ async function run() {
     //NOTE - MidleWare
     const verifyToken = (req, res, next) => {
       console.log(req.headers);
+      console.log(req.headers.authorization);
       if (!req.headers.authorization) {
         return res.status(401).send({ message: "FORBIDDEN" });
       }
       const token = req.headers.authorization.split(" ")[1];
-
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRECT, (err, decoded) => {
+        if (err) {
+          return res.status(401).send({ message: "FORBIDDEN" });
+        }
+        req.decoded = decoded;
+        next();
+      });
       // next();
     };
 
