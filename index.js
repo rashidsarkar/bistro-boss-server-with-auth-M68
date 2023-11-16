@@ -30,6 +30,24 @@ async function run() {
     const cartCollection = client.db("bistroDB").collection("cart");
     // await client.connect();
 
+    //NOTE - MidleWare
+    const verifyToken = (req, res, next) => {
+      console.log(req.headers);
+      console.log(req.headers.authorization);
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: "FORBIDDEN" });
+      }
+      const token = req.headers.authorization.split(" ")[1];
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRECT, (err, decoded) => {
+        if (err) {
+          return res.status(401).send({ message: "FORBIDDEN" });
+        }
+        req.decoded = decoded;
+        next();
+      });
+      // next();
+    };
+
     //NOTE - JWT related API
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -68,23 +86,6 @@ async function run() {
       const result = await userCollection.insertOne(user);
       res.send(result);
     });
-    //NOTE - MidleWare
-    const verifyToken = (req, res, next) => {
-      console.log(req.headers);
-      console.log(req.headers.authorization);
-      if (!req.headers.authorization) {
-        return res.status(401).send({ message: "FORBIDDEN" });
-      }
-      const token = req.headers.authorization.split(" ")[1];
-      jwt.verify(token, process.env.ACCESS_TOKEN_SECRECT, (err, decoded) => {
-        if (err) {
-          return res.status(401).send({ message: "FORBIDDEN" });
-        }
-        req.decoded = decoded;
-        next();
-      });
-      // next();
-    };
 
     app.get("/api/allUsers", verifyToken, async (req, res) => {
       const result = await userCollection.find().toArray();
