@@ -35,17 +35,30 @@ async function run() {
       console.log(req.headers);
       console.log(req.headers.authorization);
       if (!req.headers.authorization) {
-        return res.status(401).send({ message: "FORBIDDEN" });
+        return res.status(401).send({ message: "Unauthorized" });
       }
       const token = req.headers.authorization.split(" ")[1];
       jwt.verify(token, process.env.ACCESS_TOKEN_SECRECT, (err, decoded) => {
         if (err) {
-          return res.status(401).send({ message: "FORBIDDEN" });
+          return res.status(401).send({ message: "Unauthorized" });
         }
         req.decoded = decoded;
         next();
       });
       // next();
+    };
+
+    //veryfy admiin
+    // use verify admin after veryfy token
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const isAdmin = user?.role === "admin";
+      if (!isAdmin) {
+        return res.status(403).send({ message: "Forbidden!" });
+      }
+      next();
     };
 
     //NOTE - JWT related API
@@ -62,7 +75,7 @@ async function run() {
     app.get("/api/user/admin/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       if (email !== req.decoded.email) {
-        return res.status(403).send({ message: "Unauthorized" });
+        return res.status(403).send({ message: "FORBIDDEN" });
       }
       const query = { email: email };
       const user = await userCollection.findOne(query);
@@ -87,31 +100,41 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/api/allUsers", verifyToken, async (req, res) => {
+    app.get("/api/allUsers", verifyToken, verifyAdmin, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
 
     //NOTE - User API DashBord
-    app.patch("/api/makeAdminuser/:id", async (req, res) => {
-      const id = req.params.id;
-      const filter = { _id: new ObjectId(id) };
-      const updatedDoc = {
-        $set: {
-          role: "admin",
-        },
-      };
-      const result = await userCollection.updateOne(filter, updatedDoc);
-      res.send(result);
-    });
+    app.patch(
+      "/api/makeAdminuser/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            role: "admin",
+          },
+        };
+        const result = await userCollection.updateOne(filter, updatedDoc);
+        res.send(result);
+      }
+    );
 
     //NOTE - Menu Related API
-    app.delete("/api/deleteUser/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await userCollection.deleteOne(query);
-      res.send(result);
-    });
+    app.delete(
+      "/api/deleteUser/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await userCollection.deleteOne(query);
+        res.send(result);
+      }
+    );
 
     app.get("/menu", async (req, res) => {
       const result = await menuCollection.find().toArray();
