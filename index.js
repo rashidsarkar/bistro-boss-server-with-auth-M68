@@ -30,6 +30,15 @@ async function run() {
     const cartCollection = client.db("bistroDB").collection("cart");
     // await client.connect();
 
+    //NOTE - JWT related API
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRECT, {
+        expiresIn: "1h",
+      });
+      res.send({ token });
+    });
+
     //NOTE -  User API
 
     app.post("/api/users", async (req, res) => {
@@ -45,8 +54,18 @@ async function run() {
       const result = await userCollection.insertOne(user);
       res.send(result);
     });
+    //NOTE - MidleWare
+    const verifyToken = (req, res, next) => {
+      console.log(req.headers);
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: "FORBIDDEN" });
+      }
+      const token = req.headers.authorization.split(" ")[1];
 
-    app.get("/api/allUsers", async (req, res) => {
+      // next();
+    };
+
+    app.get("/api/allUsers", verifyToken, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
